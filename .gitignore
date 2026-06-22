@@ -18,7 +18,9 @@ valid/
 test/
 
 # Large model / video files
-*.pt
+yolo26n.pt
+yolov8n.pt
+last.pt
 *.onnx
 *.engine
 *.mp4
