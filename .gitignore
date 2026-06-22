@@ -1,0 +1,28 @@
+﻿# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+env/
+yolov8/
+
+# YOLO training outputs
+runs/
+datasets/
+dataset/
+data/
+train/
+valid/
+test/
+
+# Large model / video files
+*.pt
+*.onnx
+*.engine
+*.mp4
+*.avi
+*.mov
+*.zip
+*.rar
