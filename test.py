@@ -18,7 +18,7 @@ while True:
     # YOLO推論
     results = model.predict(
         source=frame,
-        conf=0.5,
+        conf=0.7,
         verbose=False
     )
 
