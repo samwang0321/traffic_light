@@ -5,32 +5,6 @@ import time
 import threading
 
 # =========================
-# 語音初始化
-# =========================
-engine = pyttsx3.init()
-engine.setProperty("rate", 150)    # 語速
-engine.setProperty("volume", 1.0)  # 音量 0.0 ~ 1.0
-
-is_speaking = False
-
-def speak(text):
-    global is_speaking
-
-    # 如果正在講話，就不要重疊播放
-    if is_speaking:
-        return
-
-    def run():
-        global is_speaking
-        is_speaking = True
-        engine.say(text)
-        engine.runAndWait()
-        is_speaking = False
-
-    threading.Thread(target=run, daemon=True).start()
-
-
-# =========================
 # 載入訓練好的模型
 # =========================
 model = YOLO(r"weights\best.pt")
@@ -38,20 +12,76 @@ model = YOLO(r"weights\best.pt")
 print("模型類別名稱：", model.names)
 
 # =========================
+# 類別名稱設定
+# =========================
+GREEN_LABELS = ["green", "greenlight", "green_light", "綠燈"]
+RED_LABELS = ["red", "redlight", "red_light", "紅燈"]
+
+# =========================
+# 語音狀態控制
+# =========================
+current_state = None       # 目前燈號狀態：green / red / None
+last_detect_time = 0       # 最後一次偵測到紅綠燈的時間
+running = True             # 控制語音執行緒是否繼續
+speak_interval = 3         # 每 3 秒講一次
+
+
+def normalize_label(label):
+    """
+    統一類別名稱格式，避免 green light / green_light / greenlight 對不起來
+    """
+    return label.lower().replace(" ", "").replace("_", "").replace("-", "")
+
+
+def voice_loop():
+    """
+    語音廣播迴圈：
+    只要 current_state 是 green 或 red，就每隔 3 秒講一次
+    """
+    global current_state, running
+
+    engine = pyttsx3.init()
+    engine.setProperty("rate", 150)
+    engine.setProperty("volume", 1.0)
+
+    last_spoken_state = None
+    last_speak_time = 0
+
+    while running:
+        now = time.time()
+
+        if current_state == "green":
+            if last_spoken_state != "green" or now - last_speak_time >= speak_interval:
+                print("語音：可以通行")
+                engine.say("可以通行")
+                engine.runAndWait()
+
+                last_spoken_state = "green"
+                last_speak_time = time.time()
+
+        elif current_state == "red":
+            if last_spoken_state != "red" or now - last_speak_time >= speak_interval:
+                print("語音：禁止通行")
+                engine.say("禁止通行")
+                engine.runAndWait()
+
+                last_spoken_state = "red"
+                last_speak_time = time.time()
+
+        else:
+            last_spoken_state = None
+
+        time.sleep(0.1)
+
+
+# 啟動語音執行緒
+voice_thread = threading.Thread(target=voice_loop, daemon=True)
+voice_thread.start()
+
+# =========================
 # 開啟攝影機
 # =========================
 cap = cv2.VideoCapture(1)
-
-# =========================
-# 語音播放控制
-# =========================
-last_voice_state = None
-last_speak_time = 0
-speak_interval = 3  # 每 3 秒播放一次
-
-# 類別名稱設定
-GREEN_LABELS = ["green", "greenlight", "green_light", "綠燈"]
-RED_LABELS = ["red", "redlight", "red_light", "紅燈"]
 
 while True:
     ret, frame = cap.read()
@@ -59,9 +89,7 @@ while True:
     if not ret:
         break
 
-    # =========================
     # YOLO 推論
-    # =========================
     results = model.predict(
         source=frame,
         conf=0.6,
@@ -73,46 +101,34 @@ while True:
 
     # =========================
     # 取得偵測結果
-    # 如果同時偵測到多個物件，選信心值最高的紅燈或綠燈
     # =========================
     for box in results[0].boxes:
         cls_id = int(box.cls[0])
         conf = float(box.conf[0])
-        class_name = model.names[cls_id].lower()
 
-        print("偵測到：", class_name, "信心值：", conf)
+        class_name = model.names[cls_id]
+        class_name_norm = normalize_label(class_name)
 
-        if class_name in GREEN_LABELS and conf > best_conf:
+        print("偵測到：", class_name_norm, "信心值：", conf)
+
+        if class_name_norm in ["green", "greenlight", "綠燈"] and conf > best_conf:
             detected_state = "green"
             best_conf = conf
 
-        elif class_name in RED_LABELS and conf > best_conf:
+        elif class_name_norm in ["red", "redlight", "紅燈"] and conf > best_conf:
             detected_state = "red"
             best_conf = conf
 
     # =========================
-    # 語音廣播邏輯
-    # 紅燈/綠燈持續偵測到時，每 3 秒重複播放
-    # 燈號改變時，立刻播放新的提示
+    # 更新語音狀態
     # =========================
-    current_time = time.time()
-
-    if detected_state == "green":
-        if last_voice_state != "green" or current_time - last_speak_time >= speak_interval:
-            speak("可以通行")
-            last_voice_state = "green"
-            last_speak_time = current_time
-
-    elif detected_state == "red":
-        if last_voice_state != "red" or current_time - last_speak_time >= speak_interval:
-            speak("禁止通行")
-            last_voice_state = "red"
-            last_speak_time = current_time
-
+    if detected_state is not None:
+        current_state = detected_state
+        last_detect_time = time.time()
     else:
-        # 沒有偵測到紅燈或綠燈時，不播放語音
-        # 這行可以讓下一次重新偵測到燈號時馬上講
-        last_voice_state = None
+        # 如果超過 1.5 秒都沒偵測到紅燈或綠燈，就停止語音
+        if time.time() - last_detect_time > 1.5:
+            current_state = None
 
     # =========================
     # 顯示辨識畫面
@@ -124,5 +140,9 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
+# =========================
+# 結束程式
+# =========================
+running = False
 cap.release()
 cv2.destroyAllWindows()
