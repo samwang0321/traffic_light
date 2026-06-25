@@ -186,10 +186,9 @@ conf=0.6
 Demo 影片連結：
 
 ```markdown
-[觀看 Demo 影片](請放上影片連結)
+[觀看 Demo 影片](https://github.com/samwang0321/traffic_light/tree/main/demo)
 ```
 
-可將影片上傳至 YouTube、Google Drive 或 GitHub Release 後，再將連結放入此處。
 
 ---
 
