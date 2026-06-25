@@ -75,7 +75,7 @@ pip install ultralytics opencv-python pygame sounddevice scipy numpy
 ### 5.1 執行主程式
 
 ```bash
-python test.py
+python run.py
 ```
 
 ### 5.2 操作說明
