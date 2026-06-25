@@ -4,11 +4,9 @@ import time
 import pygame
 
 # =========================
-# 載入訓練好的模型
+# 載入 YOLO 模型
 # =========================
 model = YOLO(r"weights\best.pt")
-
-# 印出模型類別名稱，方便確認紅燈綠燈名稱
 print("模型類別名稱：", model.names)
 
 # =========================
@@ -16,10 +14,10 @@ print("模型類別名稱：", model.names)
 # =========================
 pygame.mixer.init()
 
-green_sound = pygame.mixer.Sound(r"audio\green_ch.wav")  # 可以通行
-red_sound = pygame.mixer.Sound(r"audio\red_ch.wav")      # 禁止通行
+green_sound = pygame.mixer.Sound(r"audio\green_ch.wav")        # 可以通行
+red_sound = pygame.mixer.Sound(r"audio\red_ch.wav")            # 禁止通行
+reminder_sound = pygame.mixer.Sound(r"audio\kihonggang.wav")  # 另一個提示音檔
 
-# 使用同一個播放通道，避免聲音重疊
 voice_channel = pygame.mixer.Channel(0)
 
 # =========================
@@ -28,20 +26,23 @@ voice_channel = pygame.mixer.Channel(0)
 cap = cv2.VideoCapture(1)
 
 # =========================
-# 語音播放控制
-# =========================
-last_state = None
-last_speak_time = 0
-speak_interval = 6  # 每 3 秒播放一次
-
 # 類別名稱設定
+# =========================
 GREEN_LABELS = ["green", "greenlight", "green_light", "綠燈"]
 RED_LABELS = ["red", "redlight", "red_light", "紅燈"]
-
 
 def normalize_label(label):
     return label.lower().replace(" ", "").replace("_", "").replace("-", "")
 
+# =========================
+# 語音控制參數
+# =========================
+last_state = None
+last_main_voice_time = 0
+last_reminder_time = 0
+
+main_voice_interval = 6      # 紅燈/綠燈主要語音間隔
+reminder_interval = 6        # 另一個音檔播放間隔
 
 while True:
     ret, frame = cap.read()
@@ -80,44 +81,79 @@ while True:
             detected_state = "red"
             best_conf = conf
 
-    # =========================
-    # 語音播放邏輯
-    # 持續偵測到同一燈號，每 3 秒播放一次
-    # =========================
     current_time = time.time()
 
+    # =========================
+    # 語音播放邏輯
+    # =========================
     if detected_state == "green":
-        if last_state != "green" or current_time - last_speak_time >= speak_interval:
-            print("語音：可以通行")
 
-            # 如果上一段聲音還沒播完，先停止，避免重疊
+        # 燈號剛變成綠燈，立刻播放可以通行
+        if last_state != "green":
+            print("語音：可以通行")
             voice_channel.stop()
             voice_channel.play(green_sound)
 
             last_state = "green"
-            last_speak_time = current_time
+            last_main_voice_time = current_time
+            last_reminder_time = current_time
+
+        # 綠燈持續存在，每 3 秒播放一次可以通行
+        elif current_time - last_main_voice_time >= main_voice_interval:
+            print("語音：可以通行")
+            voice_channel.stop()
+            voice_channel.play(green_sound)
+
+            last_main_voice_time = current_time
+
+        # 綠燈持續存在，每 5 秒播放另一個音檔
+        if current_time - last_reminder_time >= reminder_interval:
+            print("語音：播放另一個提示音檔")
+            voice_channel.stop()
+            voice_channel.play(reminder_sound)
+
+            last_reminder_time = current_time
+
 
     elif detected_state == "red":
-        if last_state != "red" or current_time - last_speak_time >= speak_interval:
-            print("語音：禁止通行")
 
+        # 燈號剛變成紅燈，立刻播放禁止通行
+        if last_state != "red":
+            print("語音：禁止通行")
             voice_channel.stop()
             voice_channel.play(red_sound)
 
             last_state = "red"
-            last_speak_time = current_time
+            last_main_voice_time = current_time
+            last_reminder_time = current_time
+
+        # 紅燈持續存在，每 3 秒播放一次禁止通行
+        elif current_time - last_main_voice_time >= main_voice_interval:
+            print("語音：禁止通行")
+            voice_channel.stop()
+            voice_channel.play(red_sound)
+
+            last_main_voice_time = current_time
+
+        # 紅燈持續存在，每 5 秒播放另一個音檔
+        if current_time - last_reminder_time >= reminder_interval:
+            print("語音：播放另一個提示音檔")
+            voice_channel.stop()
+            voice_channel.play(reminder_sound)
+
+            last_reminder_time = current_time
+
 
     else:
-        # 沒有偵測到紅燈或綠燈時，不播放
+        # 沒偵測到紅燈或綠燈
         last_state = None
 
     # =========================
-    # 顯示辨識畫面
+    # 顯示畫面
     # =========================
     annotated_frame = results[0].plot()
     cv2.imshow("Traffic Light Detection", annotated_frame)
 
-    # 按 q 離開
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
