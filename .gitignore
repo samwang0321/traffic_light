@@ -18,9 +18,8 @@ valid/
 test/
 
 # Large model / video files
-yolo26n.pt
-yolov8n.pt
-last.pt
+*.pt
+!runs\detect\runs\traffic_light-4\weights\best.pt
 *.onnx
 *.engine
 *.mp4
