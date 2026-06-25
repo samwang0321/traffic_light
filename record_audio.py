@@ -16,7 +16,7 @@ os.makedirs("audio", exist_ok=True)
 # =========================
 # 錄綠燈語音就用 green.wav
 # 錄紅燈語音就改成 red.wav
-filename = "audio/green1.wav"
+filename = "audio/rideslow.wav"
 
 print("=" * 40)
 print("準備錄音")
