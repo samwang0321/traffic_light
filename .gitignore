@@ -19,7 +19,8 @@ test/
 
 # Large model / video files
 *.pt
-!runs\detect\runs\traffic_light-4\weights\best.pt
+!weights/
+!weights/best.pt
 *.onnx
 *.engine
 *.mp4
