@@ -186,7 +186,7 @@ conf=0.6
 Demo 影片連結：
 
 ```markdown
-[觀看 Demo 影片](https://github.com/samwang0321/traffic_light/tree/main/demo)
+https://github.com/samwang0321/traffic_light/tree/main/demo
 ```
 
 
