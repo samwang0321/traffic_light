@@ -24,6 +24,7 @@ test/
 *.onnx
 *.engine
 *.mp4
+!demo1.mp4
 *.avi
 *.mov
 *.zip
